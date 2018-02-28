@@ -3,6 +3,7 @@
 use Data::Dumper;
 use JSON;
 use POSIX qw(strftime);
+use strict;
 
 my $metrics = {};
 
@@ -55,15 +56,13 @@ my $influx_hash = {
 };
 
 
-
 foreach my $query (keys %{$prom_hash}) {
-my $response  =  qx(curl -s -g http://10.1.2.34:9090/api/v1/query?query='$prom_hash->{$query}') ;
-$response = decode_json ($response);
-$metrics->{$query} = $response->{'data'}->{'result'}[0]->{'value'}[1]
+    my $response  =  qx(curl -s -g http://10.1.2.34:9090/api/v1/query?query='$prom_hash->{$query}') ;
+    $response = decode_json ($response);
+    $metrics->{$query} = $response->{'data'}->{'result'}[0]->{'value'}[1]
 }
 
 foreach my $query (keys %{$influx_hash}) {
-
     my $cmd  =  'curl -s -g http://10.1.2.32:8086/query?pretty=true --data-urlencode db=prod_tags --data-urlencode q=\'' . $influx_hash->{$query} . '\' -u ps:ps@123' ;
     my $response = `$cmd`;
     $response = decode_json ($response);
@@ -74,23 +73,3 @@ foreach my $query (keys %{$influx_hash}) {
 
 print Dumper ($metrics);
 
-
-=head
-#Influx test
-my $cmd = qx ( curl -s -g 'http://10.1.2.32:8086/query?pretty=true' --data-urlencode "db=prod_tags" --data-urlencode 'q=SELECT "value" FROM "mpdb_recently_created_leads.gauge-count" WHERE ("host" =~ /prod-db-01/) order by desc limit 1;' -u root:root );
-$response = decode_json ($cmd);
-print Dumper($response);
-
-#Prometheus test
-my $cmd = qx ( curl -s -g 'http://10.1.2.34:9090/api/v1/query?query=sum(delta(collectd_statsd_derive{statsd="prod.job-csdb.LEAD_ASSIGNED_COUNT"}[2h]))' );
-$response = decode_json ($cmd);
-die "Error connecting to $url" unless defined $response;
-$response = decode_json ($response);
-print Dumper($response);
-print Dumper ($response->{'data'}->{'result'}[0]->{'value'}[0]);
-print Dumper ($response->{'data'}->{'result'}[0]->{'value'}[1]);
-
-my $epoch = $response->{'data'}->{'result'}[0]->{'value'}[0];
-my $value = $response->{'data'}->{'result'}[0]->{'value'}[0];
-print strftime("%m/%d/%Y %H:%M:%S",localtime($epoch));
-print $value;
